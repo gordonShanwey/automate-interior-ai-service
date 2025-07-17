@@ -1,0 +1,12 @@
+# Ruff configuration is maintained in pyproject.toml
+# This file exists for compatibility but all configuration is in pyproject.toml
+
+# If you prefer to use ruff.toml instead of pyproject.toml, you can move 
+# the [tool.ruff] section from pyproject.toml to this file
+
+# Current configuration location: pyproject.toml [tool.ruff]
+# - target-version = "py311"
+# - line-length = 100
+# - Comprehensive linting rules for FastAPI projects
+# - Custom formatting settings
+# - Per-file ignores for tests and __init__.py files 
