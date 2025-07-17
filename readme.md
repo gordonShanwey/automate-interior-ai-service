@@ -11,7 +11,7 @@ This service is built using modern cloud-native architecture:
 - **Google Pub/Sub** - Message queue for client data processing
 - **Google Vertex AI** - AI-powered client profile generation
 - **Google Cloud Logging** - Centralized logging and monitoring
-- **Terraform** - Infrastructure as Code management
+- **Google Cloud SDK** - For cloud resource management
 
 ## 📋 Features
 
@@ -30,7 +30,7 @@ Before getting started, ensure you have the following installed:
 - **Python 3.11+**
 - **uv** - Python package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - **Google Cloud SDK** - For authentication and deployment
-- **Terraform** - For infrastructure management
+- **Google Cloud SDK** - For cloud resource management
 - **Docker** - For containerization
 
 ### Local Development Setup
@@ -86,28 +86,33 @@ Before getting started, ensure you have the following installed:
 
 ### Initial Setup
 
-1. **Configure Terraform backend**
+1. **Create Google Cloud resources**
    ```bash
-   # Create GCS bucket for Terraform state
-   gsutil mb gs://your-terraform-state-bucket
+   # Create service account
+   gcloud iam service-accounts create interior-ai-service \
+     --display-name="Interior AI Service"
    
-   # Update infrastructure/main.tf with your bucket name
+   # Create Artifact Registry repository
+   gcloud artifacts repositories create interior-ai-service \
+     --repository-format=docker \
+     --location=us-central1
+   
+   # Create Pub/Sub topic and subscription
+   gcloud pubsub topics create client-form-data
+   gcloud pubsub subscriptions create client-form-processor \
+     --topic=client-form-data
    ```
 
-2. **Initialize Terraform**
+2. **Set up service account permissions**
    ```bash
-   cd infrastructure
-   terraform init
-   ```
-
-3. **Plan infrastructure**
-   ```bash
-   terraform plan -var-file="environments/dev.tfvars"
-   ```
-
-4. **Deploy infrastructure**
-   ```bash
-   terraform apply -var-file="environments/dev.tfvars"
+   # Add required IAM roles
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:interior-ai-service@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/aiplatform.user"
+   
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:interior-ai-service@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/pubsub.subscriber"
    ```
 
 ### Application Deployment
@@ -117,11 +122,15 @@ The service automatically deploys via Google Cloud Build when code is pushed to 
 **Manual deployment:**
 ```bash
 # Build and push Docker image
-docker build -t gcr.io/YOUR_PROJECT_ID/interior-ai-service:latest .
-docker push gcr.io/YOUR_PROJECT_ID/interior-ai-service:latest
+docker build -t us-central1-docker.pkg.dev/YOUR_PROJECT_ID/interior-ai-service/interior-ai-service:latest .
+docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/interior-ai-service/interior-ai-service:latest
 
-# Deploy to Cloud Run (handled by Terraform)
-terraform apply -var="image_tag=latest"
+# Deploy to Cloud Run
+gcloud run deploy interior-ai-service \
+  --image=us-central1-docker.pkg.dev/YOUR_PROJECT_ID/interior-ai-service/interior-ai-service:latest \
+  --region=us-central1 \
+  --platform=managed \
+  --allow-unauthenticated
 ```
 
 ## 📁 Project Structure
@@ -136,9 +145,8 @@ automate-interior-ai-service/
 │   ├── models/            # Data models
 │   ├── utils/             # Utility functions
 │   └── middleware/        # FastAPI middleware
-├── infrastructure/        # Terraform infrastructure
-│   ├── modules/           # Reusable Terraform modules
-│   └── environments/      # Environment-specific configs
+
+
 ├── tests/                 # Test suite
 ├── dev_docs/             # Development documentation
 └── pyproject.toml        # Project configuration
@@ -213,12 +221,14 @@ LOG_LEVEL=DEBUG
 ENVIRONMENT=development
 ```
 
-### Terraform Variables
+### Environment Variables
 
-Configure environment-specific variables in `infrastructure/environments/`:
+Configure environment-specific variables in your `.env.local` file:
 
-- `dev.tfvars` - Development environment
-- `prod.tfvars` - Production environment
+- `GOOGLE_CLOUD_PROJECT` - Your Google Cloud project ID
+- `VERTEX_AI_LOCATION` - Vertex AI location (e.g., us-central1)
+- `PUBSUB_TOPIC` - Pub/Sub topic name
+- `PUBSUB_SUBSCRIPTION` - Pub/Sub subscription name
 
 ## 📊 Monitoring & Observability
 
@@ -313,4 +323,4 @@ This project is licensed under the MIT License.
 - **FastAPI Documentation**: https://fastapi.tiangolo.com/
 - **Google Cloud Run**: https://cloud.google.com/run/docs
 - **Google Vertex AI**: https://cloud.google.com/vertex-ai/docs
-- **Terraform**: https://www.terraform.io/docs
+- **Google Cloud SDK**: https://cloud.google.com/sdk/docs
