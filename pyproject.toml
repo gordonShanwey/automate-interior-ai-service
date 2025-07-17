@@ -25,6 +25,7 @@ dependencies = [
     "fastapi>=0.104.1",
     "uvicorn[standard]>=0.24.0",
     "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
     "google-genai>=0.3.0",
     "google-cloud-pubsub>=2.18.0",
     "google-cloud-logging>=3.8.0",
