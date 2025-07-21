@@ -1,1 +1,1 @@
-"""Test package"""
+# Tests package for Interior AI Service
