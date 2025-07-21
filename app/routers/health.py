@@ -6,6 +6,7 @@ from typing import Dict, Any
 from fastapi import APIRouter, HTTPException
 
 from app.config import get_settings
+from app.utils.auth import run_authentication_tests, get_authentication_help
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,22 @@ async def readiness_check() -> Dict[str, Any]:
     except Exception as e:
         health_status["checks"]["environment"] = f"error: {str(e)}"
     
+    # Check Google Cloud authentication
+    try:
+        auth_results = await run_authentication_tests()
+        if auth_results["overall_status"] == "healthy":
+            health_status["checks"]["google_cloud_auth"] = "healthy"
+        elif auth_results["overall_status"] == "partial":
+            health_status["checks"]["google_cloud_auth"] = "partial"
+        else:
+            health_status["checks"]["google_cloud_auth"] = "unhealthy"
+        
+        # Add detailed auth results
+        health_status["auth_details"] = auth_results
+        
+    except Exception as e:
+        health_status["checks"]["google_cloud_auth"] = f"error: {str(e)}"
+    
     # Overall health status
     unhealthy_checks = [k for k, v in health_status["checks"].items() if v != "healthy"]
     if unhealthy_checks:
@@ -135,4 +152,14 @@ async def service_info() -> Dict[str, Any]:
         "smtp_server": settings.smtp_server,
         "smtp_port": settings.smtp_port,
         "designer_email": settings.designer_email,
+    }
+
+
+@router.get("/auth-help")
+async def authentication_help() -> Dict[str, str]:
+    """Get authentication setup help."""
+    return {
+        "help": get_authentication_help(),
+        "endpoint": "/health/auth-help",
+        "description": "Authentication setup instructions"
     }
