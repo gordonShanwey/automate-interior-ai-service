@@ -150,13 +150,23 @@ print_success "Service account key created: interior-ai-service-key.json"
 print_status "Setting up Secret Manager..."
 echo "Creating secret in Google Secret Manager..."
 
-# Create the secret
+# Create the service account credentials secret
 gcloud secrets create interior-ai-service-credentials \
     --replication-policy=automatic \
     --quiet || print_warning "Secret may already exist"
 
 # Add the service account key to the secret
 cat interior-ai-service-key.json | gcloud secrets versions add interior-ai-service-credentials \
+    --data-file=- \
+    --quiet || print_warning "Secret version may already exist"
+
+# Create the designer email secret
+gcloud secrets create designer-email \
+    --replication-policy=automatic \
+    --quiet || print_warning "Secret may already exist"
+
+# Add the designer email to the secret
+echo "YOUR_DESIGNER_EMAIL@example.com" | gcloud secrets versions add designer-email \
     --data-file=- \
     --quiet || print_warning "Secret version may already exist"
 
@@ -173,7 +183,7 @@ echo "  - Interior AI Service account: interior-ai-service@$PROJECT_ID.iam.gserv
 echo "  - Cloud Build service account: cloud-build-deployer@$PROJECT_ID.iam.gserviceaccount.com"
 echo "  - Artifact Registry repository: interior-ai-service"
 echo "  - Cloud Storage bucket: gs://$PROJECT_ID-cloud-build-artifacts"
-echo "  - Secret Manager secret: interior-ai-service-credentials"
+echo "  - Secret Manager secrets: interior-ai-service-credentials, designer-email"
 echo ""
 echo "Next steps:"
 echo "1. Connect your GitHub repository to Cloud Build (manually in console)"
