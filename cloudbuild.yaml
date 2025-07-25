@@ -52,9 +52,9 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'europe-north1-docker.pkg.dev/$PROJECT_ID/interior-ai-service/interior-ai-service:$COMMIT_SHA'
+      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
       - '-t'
-      - 'europe-north1-docker.pkg.dev/$PROJECT_ID/interior-ai-service/interior-ai-service:latest'
+      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
       - '-f'
       - 'Dockerfile'
       - '.'
@@ -64,8 +64,8 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'europe-north1-docker.pkg.dev/$PROJECT_ID/interior-ai-service/interior-ai-service:$COMMIT_SHA'
-      - 'europe-north1-docker.pkg.dev/$PROJECT_ID/interior-ai-service/interior-ai-service:latest'
+      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
+      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
     id: 'push-image'
     waitFor: ['build-image']
 
@@ -75,11 +75,11 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'interior-ai-service'
+      - '${_SERVICE_NAME}'
       - '--image'
-      - 'europe-north1-docker.pkg.dev/$PROJECT_ID/interior-ai-service/interior-ai-service:$COMMIT_SHA'
+      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
       - '--region'
-      - 'europe-north1'
+      - '${_GCP_REGION}'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
@@ -112,19 +112,19 @@ steps:
         sleep 30
         
         # Get the service URL
-        SERVICE_URL=$(gcloud run services describe interior-ai-service --region=europe-north1 --format='value(status.url)')
+        SERVICE_URL=\$(gcloud run services describe ${_SERVICE_NAME} --region=${_GCP_REGION} --format='value(status.url)')
         
         # Run health checks
-        echo "Checking service at: $SERVICE_URL"
+        echo "Checking service at: \$SERVICE_URL"
         
         # Basic health check
-        curl -f "$SERVICE_URL/health/" || exit 1
+        curl -f "\$SERVICE_URL/health/" || exit 1
         
         # Readiness check
-        curl -f "$SERVICE_URL/health/readiness" || exit 1
+        curl -f "\$SERVICE_URL/health/readiness" || exit 1
         
         echo "✅ Health checks passed"
-        echo "🚀 Deployment successful! Service URL: $SERVICE_URL"
+        echo "🚀 Deployment successful! Service URL: \$SERVICE_URL"
     waitFor: ['deploy-cloud-run']
 
 # Build options
@@ -135,10 +135,16 @@ options:
 # Build timeout
 timeout: '1200s'
 
+# Substitutions
+substitutions:
+  _GCP_REGION: europe-north1
+  _SERVICE_NAME: interior-ai-service
+  _ARTIFACT_REGISTRY: interior-ai-service
+
 # Available images
 images:
-  - 'europe-north1-docker.pkg.dev/$PROJECT_ID/interior-ai-service/interior-ai-service:$COMMIT_SHA'
-  - 'europe-north1-docker.pkg.dev/$PROJECT_ID/interior-ai-service/interior-ai-service:latest'
+  - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
+  - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
 
 # Artifacts to store
 artifacts:
