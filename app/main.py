@@ -10,17 +10,16 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings, validate_configuration
 from app.routers import health, webhooks
+from app.middleware.error_handler import create_error_handler_middleware
+from app.middleware.logging_middleware import create_logging_middleware
+from app.utils.logging import setup_logging, StructuredLogger
+from app.services.genai_service import get_genai_service
+from app.services.email_service import get_email_service
+from app.services.pubsub_service import get_pubsub_service
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-    ],
-)
-
-logger = logging.getLogger(__name__)
+# Setup logging
+setup_logging()
+logger = StructuredLogger("main")
 
 
 @asynccontextmanager
@@ -46,12 +45,42 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"📨 Pub/Sub Topic: {settings.pubsub_topic}")
     logger.info(f"📧 Designer Email: {settings.designer_email}")
     
+    # Initialize services
+    try:
+        logger.info("🔧 Initializing services...")
+        
+        # Initialize Gen AI service
+        genai_service = get_genai_service()
+        logger.info("✅ Gen AI service initialized")
+        
+        # Initialize email service
+        email_service = get_email_service()
+        logger.info("✅ Email service initialized")
+        
+        # Initialize Pub/Sub service
+        pubsub_service = get_pubsub_service()
+        logger.info("✅ Pub/Sub service initialized")
+        
+        logger.info("✅ All services initialized successfully")
+        
+    except Exception as e:
+        logger.error(f"❌ Service initialization failed: {str(e)}")
+        raise RuntimeError(f"Service initialization failed: {str(e)}")
+    
     logger.info("✅ Interior AI Service started successfully")
     
     yield
     
     # Shutdown
     logger.info("🛑 Shutting down Interior AI Service...")
+    
+    # Cleanup services if needed
+    try:
+        # Add any cleanup logic here
+        logger.info("🧹 Service cleanup completed")
+    except Exception as e:
+        logger.error(f"❌ Service cleanup failed: {str(e)}")
+    
     logger.info("✅ Interior AI Service shutdown complete")
 
 
@@ -79,18 +108,18 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     
-    # Add request logging middleware
-    @app.middleware("http")
-    async def log_requests(request: Request, call_next):
-        """Log incoming requests and responses."""
-        logger.info(f"📥 {request.method} {request.url.path}")
-        
-        response = await call_next(request)
-        
-        logger.info(f"📤 {request.method} {request.url.path} - {response.status_code}")
-        return response
+    # Add logging middleware
+    app.add_middleware(create_logging_middleware(
+        log_requests=True,
+        log_responses=True
+    ))
     
-    # Add global exception handler
+    # Add error handling middleware
+    app.add_middleware(create_error_handler_middleware(
+        include_details=settings.debug
+    ))
+    
+    # Add global exception handler for unhandled errors
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         """Global exception handler for unhandled errors."""
@@ -99,26 +128,31 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=500,
             content={
-                "error": "Internal server error",
-                "message": "An unexpected error occurred",
-                "request_id": getattr(request.state, "request_id", "unknown"),
-            },
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred",
+                    "timestamp": "2024-01-15T10:30:00Z"
+                }
+            }
         )
     
     # Include routers
     app.include_router(health.router, prefix="/health", tags=["health"])
-    app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
+    app.include_router(webhooks.router, tags=["webhooks"])
     
     # Root endpoint
     @app.get("/", tags=["root"])
     async def root():
         """Root endpoint with service information."""
+        settings = get_settings()
         return {
             "service": settings.app_name,
             "version": settings.app_version,
-            "environment": settings.environment,
             "status": "running",
-            "docs": "/docs" if settings.debug else "disabled in production",
+            "environment": settings.environment,
+            "docs": "/docs" if settings.debug else None,
+            "health": "/health",
+            "webhooks": "/webhooks"
         }
     
     return app
