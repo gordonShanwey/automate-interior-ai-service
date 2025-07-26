@@ -20,11 +20,11 @@ WORKDIR /app
 
 # Copy dependency files first for better caching
 COPY pyproject.toml ./
-COPY uv.lock ./
 COPY readme.md ./
 
 # Install dependencies using uv (production only, no dev dependencies)
-RUN uv sync --frozen --no-dev
+# This will create uv.lock automatically
+RUN uv sync --no-dev
 
 # Copy application code
 COPY . .
