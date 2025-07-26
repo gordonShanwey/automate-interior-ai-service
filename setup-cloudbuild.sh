@@ -129,6 +129,10 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:cloud-build-deployer@$PROJECT_ID.iam.gserviceaccount.com" \
     --role="roles/aiplatform.user"
 
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:cloud-build-deployer@$PROJECT_ID.iam.gserviceaccount.com" \
+    --role="roles/logging.logWriter"
+
 print_success "Cloud Build service account permissions granted"
 
 # Note: Cloud Build trigger will be created manually after repository connection
