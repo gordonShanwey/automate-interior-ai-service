@@ -1,131 +1,147 @@
 # Simple Cloud Build configuration for Interior AI Service
 # Runs on push to main branch - builds, tests, and deploys
 
+# COMMENTED OUT COMPLEX BUILD - TESTING SIMPLE CONNECTION FIRST
+# steps:
+#   # Step 1: Run tests and code quality checks
+#   - name: 'gcr.io/cloud-builders/docker'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo "🧪 Running tests and code quality checks..."
+#         
+#         # Create a test container with our code
+#         docker create --name test-container python:3.11-slim
+#         docker cp . test-container:/app
+#         docker start test-container
+#         
+#         # Install uv and dependencies
+#         docker exec test-container bash -c "
+#           pip install --no-cache-dir uv &&
+#           cd /app &&
+#           uv sync --frozen --no-dev &&
+#           uv run pip install pytest pytest-cov ruff bandit
+#         "
+#         
+#         # Run code quality checks
+#         docker exec test-container bash -c "
+#           cd /app &&
+#           echo '🔍 Running ruff linting...' &&
+#           uv run ruff check . &&
+#           echo '✨ Running ruff formatting...' &&
+#           uv run ruff format --check . &&
+#           echo '🔒 Running security scanning...' &&
+#           uv run bandit -r app/ || true
+#         "
+#         
+#         # Run unit tests
+#         docker exec test-container bash -c "
+#           cd /app &&
+#           echo '🧪 Running unit tests...' &&
+#           uv run pytest tests/unit/ -v
+#         "
+#         
+#         # Clean up test container
+#         docker stop test-container
+#         docker rm test-container
+#         
+#         echo "✅ Tests completed"
+# 
+#   # Step 2: Build Docker image
+#   - name: 'gcr.io/cloud-builders/docker'
+#     args:
+#       - 'build'
+#       - '-t'
+#       - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
+#       - '-t'
+#       - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
+#       - '-f'
+#       - 'Dockerfile'
+#       - '.'
+#     id: 'build-image'
+# 
+#   # Step 3: Push Docker image to Artifact Registry
+#   - name: 'gcr.io/cloud-builders/docker'
+#     args:
+#       - 'push'
+#       - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
+#       - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
+#     id: 'push-image'
+#     waitFor: ['build-image']
+# 
+#   # Step 4: Deploy to Cloud Run
+#   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+#     entrypoint: 'gcloud'
+#     args:
+#       - 'run'
+#       - 'deploy'
+#       - '${_SERVICE_NAME}'
+#       - '--image'
+#       - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
+#       - '--region'
+#       - '${_GCP_REGION}'
+#       - '--platform'
+#       - 'managed'
+#       - '--allow-unauthenticated'
+#       - '--port'
+#       - '8080'
+#       - '--memory'
+#       - '2Gi'
+#       - '--cpu'
+#       - '2'
+#       - '--max-instances'
+#       - '20'
+#       - '--min-instances'
+#       - '1'
+#       - '--set-env-vars'
+#       - 'ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,VERTEX_AI_LOCATION=europe-north1,PUBSUB_TOPIC=form-submissions-topic'
+#       - '--set-secrets'
+#       - 'GOOGLE_APPLICATION_CREDENTIALS=interior-ai-service-credentials:latest,DESIGNER_EMAIL=designer-email:latest'
+#     id: 'deploy-cloud-run'
+#     waitFor: ['push-image']
+# 
+#   # Step 5: Run health checks
+#   - name: 'gcr.io/cloud-builders/curl'
+#     entrypoint: 'bash'
+#     args:
+#       - '-c'
+#       - |
+#         echo "🏥 Running health checks..."
+#         
+#         # Wait for deployment to be ready
+#         sleep 30
+#         
+#         # Get the service URL
+#         RUN_SERVICE_URL=$$(gcloud run services describe ${_SERVICE_NAME} --region=${_GCP_REGION} --format='value(status.url)')
+#         
+#         # Run health checks
+#         echo "Checking service at: $$RUN_SERVICE_URL"
+#         
+#         # Basic health check
+#         curl -f "$$RUN_SERVICE_URL/health/" || exit 1
+#         
+#         # Readiness check
+#         curl -f "$$RUN_SERVICE_URL/health/readiness" || exit 1
+#         
+#         echo "✅ Health checks passed"
+#         echo "🚀 Deployment successful! Service URL: $$RUN_SERVICE_URL"
+#     waitFor: ['deploy-cloud-run']
+
+# SIMPLE TEST BUILD - JUST TO CHECK CONNECTION
 steps:
-  # Step 1: Run tests and code quality checks
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "🧪 Running tests and code quality checks..."
-        
-        # Create a test container with our code
-        docker create --name test-container python:3.11-slim
-        docker cp . test-container:/app
-        docker start test-container
-        
-        # Install uv and dependencies
-        docker exec test-container bash -c "
-          pip install --no-cache-dir uv &&
-          cd /app &&
-          uv sync --frozen --no-dev &&
-          uv run pip install pytest pytest-cov ruff bandit
-        "
-        
-        # Run code quality checks
-        docker exec test-container bash -c "
-          cd /app &&
-          echo '🔍 Running ruff linting...' &&
-          uv run ruff check . &&
-          echo '✨ Running ruff formatting...' &&
-          uv run ruff format --check . &&
-          echo '🔒 Running security scanning...' &&
-          uv run bandit -r app/ || true
-        "
-        
-        # Run unit tests
-        docker exec test-container bash -c "
-          cd /app &&
-          echo '🧪 Running unit tests...' &&
-          uv run pytest tests/unit/ -v
-        "
-        
-        # Clean up test container
-        docker stop test-container
-        docker rm test-container
-        
-        echo "✅ Tests completed"
-
-  # Step 2: Build Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
-      - '-t'
-      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
-      - '-f'
-      - 'Dockerfile'
-      - '.'
-    id: 'build-image'
-
-  # Step 3: Push Docker image to Artifact Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
-      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
-    id: 'push-image'
-    waitFor: ['build-image']
-
-  # Step 4: Deploy to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args:
-      - 'run'
-      - 'deploy'
-      - '${_SERVICE_NAME}'
-      - '--image'
-      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
-      - '--region'
-      - '${_GCP_REGION}'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--port'
-      - '8080'
-      - '--memory'
-      - '2Gi'
-      - '--cpu'
-      - '2'
-      - '--max-instances'
-      - '20'
-      - '--min-instances'
-      - '1'
-      - '--set-env-vars'
-      - 'ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,VERTEX_AI_LOCATION=europe-north1,PUBSUB_TOPIC=form-submissions-topic'
-      - '--set-secrets'
-      - 'GOOGLE_APPLICATION_CREDENTIALS=interior-ai-service-credentials:latest,DESIGNER_EMAIL=designer-email:latest'
-    id: 'deploy-cloud-run'
-    waitFor: ['push-image']
-
-  # Step 5: Run health checks
-  - name: 'gcr.io/cloud-builders/curl'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "🏥 Running health checks..."
-        
-        # Wait for deployment to be ready
-        sleep 30
-        
-        # Get the service URL
-        RUN_SERVICE_URL=$$(gcloud run services describe ${_SERVICE_NAME} --region=${_GCP_REGION} --format='value(status.url)')
-        
-        # Run health checks
-        echo "Checking service at: $$RUN_SERVICE_URL"
-        
-        # Basic health check
-        curl -f "$$RUN_SERVICE_URL/health/" || exit 1
-        
-        # Readiness check
-        curl -f "$$RUN_SERVICE_URL/health/readiness" || exit 1
-        
-        echo "✅ Health checks passed"
-        echo "🚀 Deployment successful! Service URL: $$RUN_SERVICE_URL"
-    waitFor: ['deploy-cloud-run']
+        echo "🔧 Testing Cloud Build connection..."
+        echo "Project ID: $PROJECT_ID"
+        echo "Commit SHA: $COMMIT_SHA"
+        echo "Branch: $BRANCH_NAME"
+        echo "✅ Cloud Build is working!"
+        echo "Region: ${_GCP_REGION}"
+        echo "Service: ${_SERVICE_NAME}"
 
 # Build options
 options:
