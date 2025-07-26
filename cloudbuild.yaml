@@ -31,14 +31,14 @@ steps:
           echo '✨ Running ruff formatting...' &&
           uv run ruff format --check . &&
           echo '🔒 Running security scanning...' &&
-          uv run bandit -r app/ -f json -o bandit-report.json || true
+          uv run bandit -r app/ || true
         "
         
         # Run unit tests
         docker exec test-container bash -c "
           cd /app &&
           echo '🧪 Running unit tests...' &&
-          uv run pytest tests/unit/ -v --cov=app --cov-report=term
+          uv run pytest tests/unit/ -v
         "
         
         # Clean up test container
@@ -130,14 +130,13 @@ steps:
 # Build options
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: 'E2_HIGHCPU_8'
 
 # Build timeout
 timeout: '1200s'
 
 # Substitutions
 substitutions:
-  _GCP_REGION: europe-west1
+  _GCP_REGION: europe-north1
   _SERVICE_NAME: interior-ai-service
   _ARTIFACT_REGISTRY: interior-ai-service
 
@@ -146,11 +145,4 @@ images:
   - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
   - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
 
-# Artifacts to store
-artifacts:
-  objects:
-    location: 'gs://$PROJECT_ID-cloud-build-artifacts/'
-    paths:
-      - 'bandit-report.json'
-      - 'htmlcov/'
-      - 'coverage.xml' 
+ 

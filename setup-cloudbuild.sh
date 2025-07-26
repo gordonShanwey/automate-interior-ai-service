@@ -53,17 +53,13 @@ print_success "APIs enabled successfully"
 print_status "Creating Artifact Registry repository..."
 gcloud artifacts repositories create interior-ai-service \
     --repository-format=docker \
-    --location=europe-west1 \
+    --location=europe-north1 \
     --description="Interior AI Service Docker images" \
     --quiet || print_warning "Repository may already exist"
 
 print_success "Artifact Registry repository created"
 
-# Create Cloud Storage bucket for build artifacts
-print_status "Creating Cloud Storage bucket for build artifacts..."
-gsutil mb -l europe-west1 gs://$PROJECT_ID-cloud-build-artifacts || print_warning "Bucket may already exist"
 
-print_success "Cloud Storage bucket created"
 
 # Create service account for the Interior AI Service
 print_status "Creating service account for Interior AI Service..."
