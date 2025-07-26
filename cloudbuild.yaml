@@ -94,6 +94,8 @@ steps:
       - '${_GCP_REGION}'
       - '--platform'
       - 'managed'
+      - '--service-account'
+      - 'interior-ai-service@$PROJECT_ID.iam.gserviceaccount.com'
       - '--allow-unauthenticated'
       - '--port'
       - '8080'
