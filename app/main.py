@@ -45,27 +45,34 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"📨 Pub/Sub Topic: {settings.pubsub_topic}")
     logger.info(f"📧 Designer Email: {settings.designer_email}")
     
-    # Initialize services
+    # Initialize services (lazy initialization - don't fail startup)
     try:
-        logger.info("🔧 Initializing services...")
+        logger.info("🔧 Attempting to initialize services...")
         
-        # Initialize Gen AI service
-        genai_service = get_genai_service()
-        logger.info("✅ Gen AI service initialized")
+        # Try to initialize services but don't fail if they can't connect
+        try:
+            genai_service = get_genai_service()
+            logger.info("✅ Gen AI service initialized")
+        except Exception as e:
+            logger.warning(f"⚠️  Gen AI service initialization failed (will retry later): {str(e)}")
         
-        # Initialize email service
-        email_service = get_email_service()
-        logger.info("✅ Email service initialized")
+        try:
+            email_service = get_email_service()
+            logger.info("✅ Email service initialized")
+        except Exception as e:
+            logger.warning(f"⚠️  Email service initialization failed (will retry later): {str(e)}")
         
-        # Initialize Pub/Sub service
-        pubsub_service = get_pubsub_service()
-        logger.info("✅ Pub/Sub service initialized")
+        try:
+            pubsub_service = get_pubsub_service()
+            logger.info("✅ Pub/Sub service initialized")
+        except Exception as e:
+            logger.warning(f"⚠️  Pub/Sub service initialization failed (will retry later): {str(e)}")
         
-        logger.info("✅ All services initialized successfully")
+        logger.info("✅ Service initialization completed (some services may retry later)")
         
     except Exception as e:
-        logger.error(f"❌ Service initialization failed: {str(e)}")
-        raise RuntimeError(f"Service initialization failed: {str(e)}")
+        logger.error(f"❌ Critical service initialization failed: {str(e)}")
+        # Don't raise here - let the app start and services can retry later
     
     logger.info("✅ Interior AI Service started successfully")
     
