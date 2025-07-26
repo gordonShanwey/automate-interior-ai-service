@@ -338,12 +338,15 @@ class PubSubService:
 
 
 # Global service instance
-pubsub_service = PubSubService()
+_pubsub_service_instance = None
 
 
 def get_pubsub_service() -> PubSubService:
     """Get the global Pub/Sub service instance."""
-    return pubsub_service
+    global _pubsub_service_instance
+    if _pubsub_service_instance is None:
+        _pubsub_service_instance = PubSubService()
+    return _pubsub_service_instance
 
 
 # Message processing callback for background tasks

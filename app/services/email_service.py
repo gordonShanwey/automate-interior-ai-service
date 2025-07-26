@@ -429,9 +429,12 @@ Confidence Score: {confidence_score}
 
 
 # Global service instance
-email_service = EmailService()
+_email_service_instance = None
 
 
 def get_email_service() -> EmailService:
     """Get the global email service instance."""
-    return email_service
+    global _email_service_instance
+    if _email_service_instance is None:
+        _email_service_instance = EmailService()
+    return _email_service_instance
