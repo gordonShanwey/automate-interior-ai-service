@@ -90,6 +90,10 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:interior-ai-service@$PROJECT_ID.iam.gserviceaccount.com" \
     --role="roles/monitoring.metricWriter"
 
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:interior-ai-service@$PROJECT_ID.iam.gserviceaccount.com" \
+    --role="roles/secretmanager.secretAccessor"
+
 print_success "Interior AI Service account permissions granted"
 
 # Create service account for Cloud Build
