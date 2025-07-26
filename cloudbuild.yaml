@@ -62,10 +62,22 @@ steps:
 
   # Step 3: Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
     args:
-      - 'push'
-      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA'
-      - '${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
+      - '-c'
+      - |
+        echo "📦 Pushing Docker images to Artifact Registry..."
+        echo "Repository: ${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}"
+        echo "Tags: $COMMIT_SHA, latest"
+        
+        # List images to verify they exist
+        docker images | grep interior-ai-service
+        
+        # Push images
+        docker push "${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:$COMMIT_SHA"
+        docker push "${_GCP_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest"
+        
+        echo "✅ Images pushed successfully"
     id: 'push-image'
     waitFor: ['build-image']
 
