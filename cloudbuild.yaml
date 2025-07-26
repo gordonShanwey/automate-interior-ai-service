@@ -137,7 +137,7 @@ timeout: '1200s'
 
 # Substitutions
 substitutions:
-  _GCP_REGION: europe-north1
+  _GCP_REGION: europe-west1
   _SERVICE_NAME: interior-ai-service
   _ARTIFACT_REGISTRY: interior-ai-service
 
