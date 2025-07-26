@@ -174,7 +174,27 @@ echo "YOUR_DESIGNER_EMAIL@example.com" | gcloud secrets versions add designer-em
     --data-file=- \
     --quiet || print_warning "Secret version may already exist"
 
-print_success "Secret created and populated"
+# Create SMTP username secret
+gcloud secrets create smtp-username \
+    --replication-policy=automatic \
+    --quiet || print_warning "Secret may already exist"
+
+# Add the SMTP username to the secret
+echo "YOUR_SMTP_USERNAME@gmail.com" | gcloud secrets versions add smtp-username \
+    --data-file=- \
+    --quiet || print_warning "Secret version may already exist"
+
+# Create SMTP password secret
+gcloud secrets create smtp-password \
+    --replication-policy=automatic \
+    --quiet || print_warning "Secret may already exist"
+
+# Add the SMTP password to the secret
+echo "YOUR_SMTP_APP_PASSWORD" | gcloud secrets versions add smtp-password \
+    --data-file=- \
+    --quiet || print_warning "Secret version may already exist"
+
+print_success "Secrets created and populated"
 
 # Clean up the key file
 rm -f interior-ai-service-key.json
