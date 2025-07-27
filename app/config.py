@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     genai_model: str = Field(default="gemini-2.5-pro", description="Google Gen AI model to use")
     
     # Pub/Sub settings
-    pubsub_topic: str = Field(default="client-form-data", description="Pub/Sub topic name")
+    pubsub_topic: str = Field(default="form-submissions-topic", description="Pub/Sub topic name")
     pubsub_subscription: str = Field(default="interior-ai-service-subscription", description="Pub/Sub subscription name")
     pubsub_push_endpoint: Optional[str] = Field(
         default=None, 

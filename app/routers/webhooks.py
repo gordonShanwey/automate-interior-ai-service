@@ -12,6 +12,7 @@ from app.models.client_data import RawClientData
 from app.services.pubsub_service import get_pubsub_service, process_message_callback
 from app.utils.errors import PubSubServiceError, format_error_response
 from app.utils.logging import StructuredLogger, log_pubsub_message
+from app.config import get_settings
 
 logger = StructuredLogger("webhooks")
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -80,8 +81,9 @@ async def handle_pubsub_push_notification(
         )
         
         # Log successful message reception
+        settings = get_settings()
         log_pubsub_message(
-            topic="client-form-data",
+            topic=settings.pubsub_topic,
             message_id=message_id,
             status="received",
             background_task_added=True
