@@ -65,7 +65,7 @@ class GenAIService:
             except Exception as e:
                 handle_service_error(
                     e, "GenAI", "generate_client_profile",
-                    client_name=client_data.client_name
+                    context={"client_name": client_data.client_name}
                 )
     
     def _create_profile_prompt(self, client_data: ClientFormData) -> str:
@@ -195,6 +195,15 @@ Please respond with only the JSON object, no additional text.
                 "quality_score": client_data.raw_data.get("quality_score", 0.0),
                 "processed_fields": list(client_data.raw_data.keys())
             }
+            # Convert numeric values to strings for fields that expect strings
+            room_count = profile_data.get("room_count", client_data.room_count)
+            if room_count is not None:
+                room_count = str(room_count)
+            
+            square_feet = profile_data.get("square_feet", client_data.square_feet)
+            if square_feet is not None:
+                square_feet = str(square_feet)
+            
             profile = ClientProfile(
                 client_name=profile_data.get("client_name", client_data.client_name or "Unknown"),
                 email=profile_data.get("email", client_data.email or ""),
@@ -202,8 +211,8 @@ Please respond with only the JSON object, no additional text.
                 project_type=profile_data.get("project_type", client_data.project_type or "Interior Design"),
                 project_summary=profile_data.get("project_summary", ""),
                 property_address=profile_data.get("property_address", client_data.address),
-                room_count=profile_data.get("room_count", client_data.room_count),
-                square_feet=profile_data.get("square_feet", client_data.square_feet),
+                room_count=room_count,
+                square_feet=square_feet,
                 budget_range=profile_data.get("budget_range", client_data.budget_range),
                 timeline=profile_data.get("timeline", client_data.timeline),
                 style_preference=profile_data.get("style_preference", client_data.style_preference),

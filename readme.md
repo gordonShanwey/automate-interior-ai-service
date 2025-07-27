@@ -272,7 +272,7 @@ The application uses Google Cloud's built-in environment variable resolution and
 # Google Cloud Configuration
 GOOGLE_CLOUD_PROJECT=your-project-id
 VERTEX_AI_LOCATION=europe-north1
-GENAI_MODEL=gemini-1.5-pro
+GENAI_MODEL=gemini-2.5-pro
 
 # Pub/Sub Configuration
 PUBSUB_TOPIC=form-submissions-topic

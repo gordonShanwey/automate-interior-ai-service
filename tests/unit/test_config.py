@@ -31,7 +31,7 @@ class TestSettings:
             "LOG_LEVEL": "ERROR",
             "GOOGLE_CLOUD_PROJECT": "test-project",
             "VERTEX_AI_LOCATION": "us-central1",
-            "GENAI_MODEL": "gemini-1.5-pro",
+            "GENAI_MODEL": "gemini-2.5-pro",
             "PUBSUB_TOPIC": "test-topic",
             "PUBSUB_SUBSCRIPTION": "test-subscription",
             "SMTP_SERVER": "smtp.test.com",
@@ -51,7 +51,7 @@ class TestSettings:
             assert settings.log_level == "ERROR"
             assert settings.google_cloud_project == "test-project"
             assert settings.vertex_ai_location == "us-central1"
-            assert settings.genai_model == "gemini-1.5-pro"
+            assert settings.genai_model == "gemini-2.5-pro"
             assert settings.pubsub_topic == "test-topic"
             assert settings.pubsub_subscription == "test-subscription"
             assert settings.smtp_server == "smtp.test.com"

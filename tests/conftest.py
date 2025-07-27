@@ -52,7 +52,7 @@ def mock_settings() -> Dict[str, Any]:
         "log_level": "DEBUG",
         "google_cloud_project": "test-project",
         "vertex_ai_location": "us-central1",
-        "genai_model": "gemini-1.5-pro",
+        "genai_model": "gemini-2.5-pro",
         "pubsub_topic": "test-topic",
         "pubsub_subscription": "test-subscription",
         "smtp_server": "smtp.test.com",

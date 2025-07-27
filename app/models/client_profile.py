@@ -89,7 +89,7 @@ class ClientProfile(BaseModel):
                 "recommendations": [],
                 "overall_recommendation": "Focus on creating a modern, comfortable space...",
                 "next_steps": ["Schedule initial consultation", "Create detailed floor plan", "Select color palette"],
-                "ai_model_used": "gemini-1.5-pro",
+                "ai_model_used": "gemini-2.5-pro",
                 "original_data_summary": {"field_count": 8, "quality_score": 0.85}
             }
         }

@@ -355,6 +355,9 @@ def process_message_callback(message_data: Dict[str, Any],
                            callback: Callable[[RawClientData], None]) -> None:
     """Process a Pub/Sub message and call the provided callback."""
     try:
+        # Get the Pub/Sub service instance
+        pubsub_service = get_pubsub_service()
+        
         # Process the message
         raw_client_data = pubsub_service.process_client_form_message(
             message_data, message_id
