@@ -265,7 +265,10 @@ Please respond with only the JSON object, no additional text.
             }
 
 
-genai_service = GenAIService()
+_genai_service_instance = None
 
 def get_genai_service() -> GenAIService:
-    return genai_service
+    global _genai_service_instance
+    if _genai_service_instance is None:
+        _genai_service_instance = GenAIService()
+    return _genai_service_instance

@@ -139,6 +139,13 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 print_success "Cloud Build service account permissions granted"
 
+# Create Pub/Sub topic
+print_status "Creating Pub/Sub topic..."
+gcloud pubsub topics create form-submissions-topic \
+    --quiet || print_warning "Topic may already exist"
+
+print_success "Pub/Sub topic created: form-submissions-topic"
+
 # Note: Cloud Build trigger will be created manually after repository connection
 print_status "Skipping Cloud Build trigger creation - will be done manually after repository connection"
 

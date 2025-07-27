@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     # Email settings
     smtp_server: str = Field(default="smtp.gmail.com", description="SMTP server")
     smtp_port: int = Field(default=587, description="SMTP port")
-    smtp_username: str = Field(..., description="SMTP username")
-    smtp_password: str = Field(..., description="SMTP password")
+    smtp_username: Optional[str] = Field(default=None, description="SMTP username")
+    smtp_password: Optional[str] = Field(default=None, description="SMTP password")
     smtp_use_tls: bool = Field(default=True, description="Use TLS for SMTP")
     designer_email: str = Field(..., description="Interior designer email address")
     
