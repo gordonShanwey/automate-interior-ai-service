@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     
     # Vertex AI / Gen AI settings
     vertex_ai_location: str = Field(default="us-central1", description="Vertex AI location")
-    genai_model: str = Field(default="gemini-1.5-pro", description="Google Gen AI model to use")
+    genai_model: str = Field(default="gemini-2.5-pro", description="Google Gen AI model to use")
     
     # Pub/Sub settings
     pubsub_topic: str = Field(default="client-form-data", description="Pub/Sub topic name")
