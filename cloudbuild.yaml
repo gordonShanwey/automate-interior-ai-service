@@ -110,7 +110,7 @@ steps:
       - '--set-env-vars'
       - 'ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,VERTEX_AI_LOCATION=europe-north1,PUBSUB_TOPIC=form-submissions-topic'
       - '--set-secrets'
-      - 'GOOGLE_APPLICATION_CREDENTIALS=interior-ai-service-credentials:latest,DESIGNER_EMAIL=designer-email:latest,SMTP_USERNAME=smtp-username:latest,SMTP_PASSWORD=smtp-password:latest'
+      - 'DESIGNER_EMAIL=designer-email:latest,SMTP_USERNAME=smtp-username:latest,SMTP_PASSWORD=smtp-password:latest'
     id: 'deploy-cloud-run'
     waitFor: ['push-image']
 
