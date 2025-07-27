@@ -84,6 +84,10 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:interior-ai-service@$PROJECT_ID.iam.gserviceaccount.com" \
+    --role="roles/pubsub.viewer"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:interior-ai-service@$PROJECT_ID.iam.gserviceaccount.com" \
     --role="roles/logging.logWriter"
 
 gcloud projects add-iam-policy-binding $PROJECT_ID \

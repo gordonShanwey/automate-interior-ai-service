@@ -194,22 +194,46 @@ class ClientFormData(BaseModel):
     @classmethod
     def from_raw_data(cls, raw_client_data: RawClientData) -> 'ClientFormData':
         """Create structured data from raw client data."""
-        extracted = raw_client_data.extract_basic_info()
+        raw_data = raw_client_data.raw_data
         
-        return cls(
-            client_name=extracted.get('client_name'),
-            email=extracted.get('email'),
-            phone=extracted.get('phone'),
-            project_type=extracted.get('project_type'),
-            budget_range=extracted.get('budget_range'),
-            timeline=extracted.get('timeline'),
-            address=extracted.get('address'),
-            room_count=extracted.get('room_count'),
-            square_feet=extracted.get('square_feet'),
-            style_preference=extracted.get('style_preference'),
-            urgency=extracted.get('urgency'),
-            raw_data=raw_client_data.raw_data,
-        )
+        # Check if data is in array format (Polish form)
+        if isinstance(raw_data, dict) and 'values' in raw_data and isinstance(raw_data['values'], list):
+            values = raw_data['values']
+            
+            # Map array indices to fields based on Polish form structure
+            # This mapping is based on the actual form data you provided
+            return cls(
+                client_name=values[3] if len(values) > 3 else None,  # "Magdalena wolak"
+                email=values[1] if len(values) > 1 else None,  # "magdalenagrzesik1991@gmail.com"
+                phone=str(values[5]) if len(values) > 5 else None,  # 730730314
+                project_type=values[7] if len(values) > 7 else None,  # "Mieszkanie w bloku"
+                budget_range=values[158] if len(values) > 158 else None,  # "250 000 na wszystko"
+                timeline=values[11] if len(values) > 11 else None,  # "2026 lipiec"
+                address=values[6] if len(values) > 6 else None,  # "Ul. Goszczyńskiego"
+                room_count=str(values[12]) if len(values) > 12 else None,  # 3
+                square_feet=str(values[9]) if len(values) > 9 else None,  # 97
+                style_preference=values[23] if len(values) > 23 else None,  # "Minimalistyczny, Modern Classic/Klasyczny, Wabi sabi/ Japandi"
+                urgency=None,  # Not in the form
+                raw_data=raw_data,
+            )
+        else:
+            # Fallback to key-value extraction
+            extracted = raw_client_data.extract_basic_info()
+            
+            return cls(
+                client_name=extracted.get('client_name'),
+                email=extracted.get('email'),
+                phone=extracted.get('phone'),
+                project_type=extracted.get('project_type'),
+                budget_range=extracted.get('budget_range'),
+                timeline=extracted.get('timeline'),
+                address=extracted.get('address'),
+                room_count=extracted.get('room_count'),
+                square_feet=extracted.get('square_feet'),
+                style_preference=extracted.get('style_preference'),
+                urgency=extracted.get('urgency'),
+                raw_data=raw_data,
+            )
     
     def to_genai_context(self) -> str:
         """Convert to context string for Gen AI processing."""
