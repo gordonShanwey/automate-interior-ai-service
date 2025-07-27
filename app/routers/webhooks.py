@@ -5,8 +5,8 @@ import base64
 from typing import Dict, Any
 from datetime import datetime
 
-from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends, status
+from fastapi.responses import JSONResponse, Response
 
 from app.models.client_data import RawClientData
 from app.services.pubsub_service import get_pubsub_service, process_message_callback
@@ -17,17 +17,38 @@ from app.config import get_settings
 logger = StructuredLogger("webhooks")
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
+# Pub/Sub retry tracking
+MAX_ENDPOINT_RETRIES = 3
+endpoint_retry_counts = {}
 
-@router.post("/pubsub")
+def get_endpoint_retry_count(message_id: str) -> int:
+    """Get current retry count for a message."""
+    return endpoint_retry_counts.get(message_id, 0)
+
+def increment_endpoint_retry_count(message_id: str) -> int:
+    """Increment retry count for a message."""
+    current = get_endpoint_retry_count(message_id)
+    endpoint_retry_counts[message_id] = current + 1
+    return endpoint_retry_counts[message_id]
+
+def clear_endpoint_retry_count(message_id: str) -> None:
+    """Clear retry count for a message."""
+    endpoint_retry_counts.pop(message_id, None)
+
+
+@router.post("/pubsub", status_code=status.HTTP_204_NO_CONTENT)
 async def handle_pubsub_push_notification(
     request: Request,
     background_tasks: BackgroundTasks
-) -> JSONResponse:
+) -> Response:
     """
     Handle Pub/Sub push notifications for client form data.
     
     This endpoint receives push notifications from Google Cloud Pub/Sub
     when new client form data is published to the configured topic.
+    
+    IMPORTANT: After MAX_ENDPOINT_RETRIES attempts, we ALWAYS acknowledge the message
+    to prevent infinite loops, regardless of error type.
     """
     try:
         # Get the raw request body
@@ -40,6 +61,16 @@ async def handle_pubsub_push_notification(
         message_data = push_message.get("message", {})
         message_id = message_data.get("messageId", "unknown")
         publish_time = message_data.get("publishTime", "")
+        
+        # Check endpoint-level retry limit FIRST
+        current_endpoint_retries = get_endpoint_retry_count(message_id)
+        logger.info(f"Endpoint retry count for message {message_id}: {current_endpoint_retries}/{MAX_ENDPOINT_RETRIES}")
+        
+        if current_endpoint_retries >= MAX_ENDPOINT_RETRIES:
+            logger.error(f"Message {message_id} exceeded endpoint retry limit ({MAX_ENDPOINT_RETRIES}), acknowledging to prevent infinite loop")
+            clear_endpoint_retry_count(message_id)
+            # ALWAYS acknowledge after max retries - prevents infinite loops
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
         
         logger.info(
             f"📨 Received Pub/Sub push notification",
@@ -89,16 +120,11 @@ async def handle_pubsub_push_notification(
             background_task_added=True
         )
         
-        # Return success response
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "success",
-                "message": "Message received and queued for processing",
-                "message_id": message_id,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        )
+        # Clear endpoint retry counter on success
+        clear_endpoint_retry_count(message_id)
+        
+        # Return 204 No Content to acknowledge the message
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
         
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -109,11 +135,21 @@ async def handle_pubsub_push_notification(
     except Exception as e:
         logger.error(f"❌ Error processing Pub/Sub notification: {str(e)}")
         
-        # Return error response
-        error_response = format_error_response(e)
-        return JSONResponse(
-            status_code=500,
-            content=error_response
+        # Increment endpoint retry counter for ANY error
+        new_endpoint_count = increment_endpoint_retry_count(message_id)
+        logger.info(f"Incremented endpoint retry count for message {message_id} to {new_endpoint_count}/{MAX_ENDPOINT_RETRIES}")
+        
+        # If we've hit the limit, acknowledge to prevent infinite loops
+        if new_endpoint_count >= MAX_ENDPOINT_RETRIES:
+            logger.error(f"Message {message_id} reached endpoint retry limit, acknowledging to prevent infinite loop")
+            clear_endpoint_retry_count(message_id)
+            return Response(status_code=status.HTTP_204_NO_CONTENT)  # Acknowledge the message
+        
+        # Otherwise, return 500 for Pub/Sub retry
+        logger.error(f"Returning 500 for message {message_id} retry (attempt {new_endpoint_count}/{MAX_ENDPOINT_RETRIES})")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Processing failed - retry attempt {new_endpoint_count}/{MAX_ENDPOINT_RETRIES}: {e}"
         )
 
 
