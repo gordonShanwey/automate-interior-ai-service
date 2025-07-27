@@ -146,6 +146,30 @@ gcloud pubsub topics create form-submissions-topic \
 
 print_success "Pub/Sub topic created: form-submissions-topic"
 
+# Create Pub/Sub subscription for Cloud Run service
+print_status "Creating Pub/Sub subscription for Interior AI Service..."
+
+# Get the current Cloud Run service URL
+SERVICE_URL=$(gcloud run services describe interior-ai-service --region=europe-north1 --format="value(status.url)" --quiet 2>/dev/null || echo "")
+
+if [ -n "$SERVICE_URL" ]; then
+    gcloud pubsub subscriptions create interior-ai-service-subscription \
+        --topic=form-submissions-topic \
+        --push-endpoint="$SERVICE_URL/webhooks/pubsub" \
+        --push-auth-service-account=interior-ai-service@$PROJECT_ID.iam.gserviceaccount.com \
+        --quiet || print_warning "Subscription may already exist"
+    
+    print_success "Pub/Sub subscription created: interior-ai-service-subscription"
+    print_success "Push endpoint: $SERVICE_URL/webhooks/pubsub"
+else
+    print_warning "Cloud Run service not found. Subscription will need to be created manually after deployment."
+    print_warning "Command to run after deployment:"
+    echo "gcloud pubsub subscriptions create interior-ai-service-subscription \\"
+    echo "    --topic=form-submissions-topic \\"
+    echo "    --push-endpoint=\$(gcloud run services describe interior-ai-service --region=europe-north1 --format='value(status.url)')/webhooks/pubsub \\"
+    echo "    --push-auth-service-account=interior-ai-service@$PROJECT_ID.iam.gserviceaccount.com"
+fi
+
 # Note: Cloud Build trigger will be created manually after repository connection
 print_status "Skipping Cloud Build trigger creation - will be done manually after repository connection"
 
