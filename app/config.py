@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     
     # Pub/Sub settings
     pubsub_topic: str = Field(default="client-form-data", description="Pub/Sub topic name")
-    pubsub_subscription: str = Field(default="client-form-processor", description="Pub/Sub subscription name")
+    pubsub_subscription: str = Field(default="interior-ai-service-subscription", description="Pub/Sub subscription name")
     pubsub_push_endpoint: Optional[str] = Field(
         default=None, 
         description="Pub/Sub push endpoint URL (auto-generated for Cloud Run)"
