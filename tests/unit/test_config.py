@@ -12,13 +12,16 @@ class TestSettings:
 
     def test_settings_default_values(self):
         """Test that Settings has expected default values."""
-        with patch.dict("os.environ", {}, clear=True):
+        with patch.dict("os.environ", {
+            "GOOGLE_CLOUD_PROJECT": "test-project",
+            "DESIGNER_EMAIL": "test@example.com"
+        }, clear=True):
             settings = Settings()
             
             assert settings.app_name == "Interior AI Service"
             assert settings.app_version == "0.1.0"
             assert settings.environment == "development"
-            assert settings.debug is True
+            assert settings.debug is False  # Default is False, not True
             assert settings.log_level == "INFO"
 
     def test_settings_from_environment(self):
@@ -209,7 +212,11 @@ class TestFieldValidators:
         valid_environments = ["development", "staging", "production", "test"]
         
         for env in valid_environments:
-            with patch.dict("os.environ", {"ENVIRONMENT": env}, clear=True):
+            with patch.dict("os.environ", {
+                "ENVIRONMENT": env,
+                "GOOGLE_CLOUD_PROJECT": "test-project",
+                "DESIGNER_EMAIL": "test@example.com"
+            }, clear=True):
                 settings = Settings()
                 assert settings.environment == env
 
@@ -224,7 +231,11 @@ class TestFieldValidators:
         valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         
         for level in valid_log_levels:
-            with patch.dict("os.environ", {"LOG_LEVEL": level}, clear=True):
+            with patch.dict("os.environ", {
+                "LOG_LEVEL": level,
+                "GOOGLE_CLOUD_PROJECT": "test-project",
+                "DESIGNER_EMAIL": "test@example.com"
+            }, clear=True):
                 settings = Settings()
                 assert settings.log_level == level
 
@@ -239,7 +250,11 @@ class TestFieldValidators:
         valid_ports = [25, 465, 587, 2525]
         
         for port in valid_ports:
-            with patch.dict("os.environ", {"SMTP_PORT": str(port)}, clear=True):
+            with patch.dict("os.environ", {
+                "SMTP_PORT": str(port),
+                "GOOGLE_CLOUD_PROJECT": "test-project",
+                "DESIGNER_EMAIL": "test@example.com"
+            }, clear=True):
                 settings = Settings()
                 assert settings.smtp_port == port
 
