@@ -8,7 +8,7 @@ set -e
 # Default values
 TEST_TYPE=${1:-"unit"}
 VERBOSE=${2:-"-v"}
-COVERAGE=${3:-"--cov"}
+COVERAGE=${3:-"--cov=app --cov-report=term-missing"}
 
 echo "🧪 Running $TEST_TYPE tests for Interior AI Service..."
 
