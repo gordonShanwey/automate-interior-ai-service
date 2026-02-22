@@ -9,6 +9,7 @@ from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends,
 from fastapi.responses import JSONResponse, Response
 
 from app.models.client_data import RawClientData
+from app.services.message_tracker import get_message_tracker
 from app.services.pubsub_service import get_pubsub_service, process_message_callback
 from app.utils.errors import PubSubServiceError, format_error_response
 from app.utils.logging import StructuredLogger, log_pubsub_message
@@ -42,8 +43,23 @@ async def handle_pubsub_push_notification(
         message_id = message_data.get("messageId", "unknown")
         publish_time = message_data.get("publishTime", "")
 
-        logger.info(f"📨 Received Pub/Sub push notification",
-                    message_id=message_id, publish_time=publish_time)
+        # Cross-instance deduplication via Firestore — prevents duplicate
+        # processing when Cloud Run cold start causes Pub/Sub to redeliver
+        try:
+            tracker = get_message_tracker()
+            attempt = tracker.check_and_increment(message_id)
+            if attempt == -1:
+                logger.info(f"✅ Message {message_id} already processed — skipping duplicate")
+                return Response(status_code=status.HTTP_204_NO_CONTENT)
+            if attempt > 5:
+                logger.error(f"❌ Message {message_id} exceeded 5 attempts — acknowledging")
+                return Response(status_code=status.HTTP_204_NO_CONTENT)
+            logger.info(f"📨 Received Pub/Sub push notification (attempt {attempt}/5)",
+                        message_id=message_id, publish_time=publish_time)
+        except Exception as tracker_err:
+            # Firestore unavailable — log and continue rather than blocking
+            logger.warning(f"⚠️ Message tracker unavailable ({tracker_err}), processing without deduplication")
+            tracker = None
 
         # Decode the message data
         encoded_data = message_data.get("data", "")
@@ -75,7 +91,8 @@ async def handle_pubsub_push_notification(
         background_tasks.add_task(
             process_client_profile_generation,
             client_data,
-            message_id
+            message_id,
+            tracker
         )
 
         # Log successful message reception
@@ -105,6 +122,7 @@ async def handle_pubsub_push_notification(
 async def process_client_profile_generation(
     client_data: Dict[str, Any],
     message_id: str,
+    tracker=None,
 ) -> None:
     """
     Background task to process client profile generation.
@@ -162,6 +180,13 @@ async def process_client_profile_generation(
                     recipient=email_status.recipient_email
                 )
                 
+                # Mark processed so any cold-start retries are skipped
+                if tracker:
+                    try:
+                        tracker.mark_processed(message_id)
+                    except Exception as te:
+                        logger.warning(f"⚠️ Failed to mark {message_id} as processed: {te}")
+
                 # Log successful completion
                 logger.info(
                     f"✅ Profile generation completed successfully",

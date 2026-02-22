@@ -1,0 +1,18 @@
+{
+  "data": {
+    "name": "Anna Kowalska",
+    "email": "anna@example.com",
+    "phone": "+48 600 123 456",
+    "timeline": "6months",
+    "answers": {
+      "podstawowe_0": "Nie",
+      "podstawowe_20": "800 zl/m2",
+      "podstawowe_21": "Japandi, minimalizm",
+      "salon_0": "Naroznik rozkladany",
+      "kuchnia_0": "Otwarta z wyspa"
+    }
+  },
+  "source": "nextjs",
+  "timestamp": "2026-02-22T10:30:00.000Z",
+  "version": "1.0"
+}
