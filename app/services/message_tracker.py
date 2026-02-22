@@ -47,7 +47,6 @@ class MessageTracker:
         """
         ref = self._db.collection(COLLECTION).document(message_id)
 
-        @firestore.transactional
         def _update(transaction: firestore.Transaction) -> int:
             snapshot = ref.get(transaction=transaction)
             if snapshot.exists:
@@ -70,7 +69,7 @@ class MessageTracker:
                 })
             return attempts
 
-        return _update(self._db.transaction())
+        return self._db.run_in_transaction(_update)
 
     def mark_processed(self, message_id: str) -> None:
         """Mark a message as successfully processed."""
