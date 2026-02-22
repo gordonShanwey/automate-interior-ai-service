@@ -125,6 +125,7 @@ IMPORTANT GUIDELINES:
 6. If information is missing, make reasonable assumptions and note them
 7. Focus on creating a cohesive, functional, and beautiful design
 8. Consider sustainability and long-term value
+9. Write ALL text fields in Polish (all descriptions, summaries, analyses, recommendations, next steps, etc.)
 
 Please respond with only the JSON object, no additional text.
 """

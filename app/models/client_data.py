@@ -195,50 +195,85 @@ class ClientFormData(BaseModel):
     def from_raw_data(cls, raw_client_data: RawClientData) -> 'ClientFormData':
         """Create structured data from raw client data."""
         raw_data = raw_client_data.raw_data
-        
-        # Check if data is in array format (Polish form)
+
+        # New flat format: { "name": "...", "email": "...", "timeline": "...", "answers": {"section_index": "value"} }
+        if (isinstance(raw_data, dict) and 'answers' in raw_data
+                and isinstance(raw_data.get('answers'), dict)
+                and 'name' in raw_data and 'client' not in raw_data):
+            answers = raw_data['answers']
+            return cls(
+                client_name=raw_data.get('name'),
+                email=raw_data.get('email'),
+                phone=raw_data.get('phone'),
+                project_type=None,
+                budget_range=answers.get('podstawowe_20'),
+                timeline=raw_data.get('timeline'),
+                address=None,
+                room_count=None,
+                square_feet=None,
+                style_preference=answers.get('podstawowe_21'),
+                urgency=None,
+                raw_data=raw_data,
+            )
+
+        # Next.js questionnaire format: { "client": {...}, "answers": {...} }
+        if isinstance(raw_data, dict) and 'client' in raw_data and 'answers' in raw_data:
+            client = raw_data['client']
+            podstawowe = raw_data['answers'].get('podstawowe', {})
+            return cls(
+                client_name=client.get('name'),
+                email=client.get('email'),
+                phone=client.get('phone'),
+                project_type=None,
+                budget_range=podstawowe.get('Jaki jest planowany budżet na wykończenie (szacunkowo na m²)?'),
+                timeline=None,
+                address=None,
+                room_count=None,
+                square_feet=None,
+                style_preference=podstawowe.get('Który styl najlepiej do nas pasuje (np. minimalizm, japandi, vintage)?'),
+                urgency=None,
+                raw_data=raw_data,
+            )
+
+        # Google Workspace array format: { "values": [...] }
         if isinstance(raw_data, dict) and 'values' in raw_data and isinstance(raw_data['values'], list):
             values = raw_data['values']
-            
-            # Map array indices to fields based on Polish form structure
-            # This mapping is based on the actual form data you provided
             return cls(
-                client_name=values[3] if len(values) > 3 else None,  # "Magdalena wolak"
-                email=values[1] if len(values) > 1 else None,  # "magdalenagrzesik1991@gmail.com"
-                phone=str(values[5]) if len(values) > 5 else None,  # 730730314
-                project_type=values[7] if len(values) > 7 else None,  # "Mieszkanie w bloku"
-                budget_range=values[158] if len(values) > 158 else None,  # "250 000 na wszystko"
-                timeline=values[11] if len(values) > 11 else None,  # "2026 lipiec"
-                address=values[6] if len(values) > 6 else None,  # "Ul. Goszczyńskiego"
-                room_count=str(values[12]) if len(values) > 12 else None,  # 3
-                square_feet=str(values[9]) if len(values) > 9 else None,  # 97
-                style_preference=values[23] if len(values) > 23 else None,  # "Minimalistyczny, Modern Classic/Klasyczny, Wabi sabi/ Japandi"
-                urgency=None,  # Not in the form
+                client_name=values[3] if len(values) > 3 else None,
+                email=values[1] if len(values) > 1 else None,
+                phone=str(values[5]) if len(values) > 5 else None,
+                project_type=values[7] if len(values) > 7 else None,
+                budget_range=values[158] if len(values) > 158 else None,
+                timeline=values[11] if len(values) > 11 else None,
+                address=values[6] if len(values) > 6 else None,
+                room_count=str(values[12]) if len(values) > 12 else None,
+                square_feet=str(values[9]) if len(values) > 9 else None,
+                style_preference=values[23] if len(values) > 23 else None,
+                urgency=None,
                 raw_data=raw_data,
             )
-        else:
-            # Fallback to key-value extraction
-            extracted = raw_client_data.extract_basic_info()
-            
-            return cls(
-                client_name=extracted.get('client_name'),
-                email=extracted.get('email'),
-                phone=extracted.get('phone'),
-                project_type=extracted.get('project_type'),
-                budget_range=extracted.get('budget_range'),
-                timeline=extracted.get('timeline'),
-                address=extracted.get('address'),
-                room_count=extracted.get('room_count'),
-                square_feet=extracted.get('square_feet'),
-                style_preference=extracted.get('style_preference'),
-                urgency=extracted.get('urgency'),
-                raw_data=raw_data,
-            )
+
+        # Fallback: generic key-value extraction
+        extracted = raw_client_data.extract_basic_info()
+        return cls(
+            client_name=extracted.get('client_name'),
+            email=extracted.get('email'),
+            phone=extracted.get('phone'),
+            project_type=extracted.get('project_type'),
+            budget_range=extracted.get('budget_range'),
+            timeline=extracted.get('timeline'),
+            address=extracted.get('address'),
+            room_count=extracted.get('room_count'),
+            square_feet=extracted.get('square_feet'),
+            style_preference=extracted.get('style_preference'),
+            urgency=extracted.get('urgency'),
+            raw_data=raw_data,
+        )
     
     def to_genai_context(self) -> str:
         """Convert to context string for Gen AI processing."""
         context_parts = []
-        
+
         # Add basic client information
         if self.client_name:
             context_parts.append(f"Client: {self.client_name}")
@@ -246,33 +281,72 @@ class ClientFormData(BaseModel):
             context_parts.append(f"Email: {self.email}")
         if self.phone:
             context_parts.append(f"Phone: {self.phone}")
-        
-        # Add project details
+
+        # Questionnaire answers — render by section
+        if 'answers' in self.raw_data and isinstance(self.raw_data['answers'], dict):
+            section_labels = {
+                "podstawowe": "Pytania podstawowe",
+                "salon": "Salon",
+                "jadalnia": "Jadalnia",
+                "kuchnia": "Kuchnia",
+                "lazienka": "Łazienka",
+                "hol": "Hol / Wejście",
+                "sypialnia": "Sypialnia",
+                "garderoba": "Garderoba",
+                "gabinet": "Gabinet",
+                "pokoj_dziecka": "Pokój dziecka",
+            }
+            answers = self.raw_data['answers']
+            # Detect format: flat (section_index → value) vs nested (section → {question: answer})
+            is_flat = answers and all(not isinstance(v, dict) for v in answers.values())
+            if is_flat:
+                # New flat format — group values by section prefix
+                current_section = None
+                for key in sorted(answers.keys()):
+                    value = answers[key]
+                    parts = key.rsplit('_', 1)
+                    section = parts[0] if len(parts) == 2 and parts[1].isdigit() else key
+                    if section != current_section:
+                        label = section_labels.get(section, section)
+                        context_parts.append(f"\n--- {label} ---")
+                        current_section = section
+                    if isinstance(value, list):
+                        value = ", ".join(str(a) for a in value)
+                    context_parts.append(str(value))
+            else:
+                # Old nested format — section → {question: answer}
+                for section_id, qa in answers.items():
+                    if not qa:
+                        continue
+                    label = section_labels.get(section_id, section_id)
+                    context_parts.append(f"\n--- {label} ---")
+                    for question, answer in qa.items():
+                        if isinstance(answer, list):
+                            answer = ", ".join(str(a) for a in answer)
+                        context_parts.append(f"P: {question}\nO: {answer}")
+            return "\n".join(context_parts)
+
+        # Flat format — add structured fields
         if self.project_type:
             context_parts.append(f"Project Type: {self.project_type}")
         if self.budget_range:
             context_parts.append(f"Budget: {self.budget_range}")
         if self.timeline:
             context_parts.append(f"Timeline: {self.timeline}")
-        
-        # Add property details
         if self.address:
             context_parts.append(f"Property Address: {self.address}")
         if self.room_count:
             context_parts.append(f"Number of Rooms: {self.room_count}")
         if self.square_feet:
             context_parts.append(f"Property Size: {self.square_feet}")
-        
-        # Add preferences
         if self.style_preference:
             context_parts.append(f"Style Preference: {self.style_preference}")
         if self.urgency:
             context_parts.append(f"Project Urgency: {self.urgency}")
-        
-        # Add any additional fields from raw data
+
         additional_fields = self.raw_data.get('additional_fields', {})
         for key, value in additional_fields.items():
             if isinstance(value, (str, int, float, bool)):
                 context_parts.append(f"{key.replace('_', ' ').title()}: {value}")
-        
+
         return "\n".join(context_parts)

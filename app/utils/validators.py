@@ -326,20 +326,17 @@ def sanitize_data(data: Dict[str, Any]) -> Dict[str, Any]:
 def validate_and_clean_data(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
     """Validate and clean incoming data."""
     errors = []
-    
-    # Sanitize data first
+
+    # Sanitize data first (preserves nested structure)
     cleaned_data = sanitize_data(data)
-    
+
     # Validate data
     is_valid, validation_errors = validate_client_data(cleaned_data)
     errors.extend(validation_errors)
-    
-    # Extract structured data
-    structured_data = extract_structured_data(cleaned_data)
-    
+
     # Assess quality
     quality_report = assess_data_quality(cleaned_data)
     if quality_report["quality_score"] < 0.3:
         errors.append("Data quality is very low - manual review recommended")
-    
-    return structured_data, errors
+
+    return cleaned_data, errors
