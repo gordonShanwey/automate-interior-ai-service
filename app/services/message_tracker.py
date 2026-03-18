@@ -1,7 +1,7 @@
 """Firestore-based Pub/Sub message deduplication and retry tracking."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from google.cloud import firestore
@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 COLLECTION = "pubsub_messages"
 MAX_ATTEMPTS = 5
+PROCESSING_LOCK_TIMEOUT = timedelta(minutes=10)
 
 
 class MessageTracker:
@@ -43,39 +44,62 @@ class MessageTracker:
 
         Returns:
             -1  if the message was already successfully processed (skip it)
+             0  if the message is already being processed by another worker
              N  the new attempt count (1 = first attempt, 2 = first retry…)
         """
         ref = self._db.collection(COLLECTION).document(message_id)
 
+        def _normalize_timestamp(value: object) -> Optional[datetime]:
+            if not isinstance(value, datetime):
+                return None
+            if value.tzinfo is None:
+                return value.replace(tzinfo=timezone.utc)
+            return value.astimezone(timezone.utc)
+
         def _update(transaction: firestore.Transaction) -> int:
+            now = datetime.now(timezone.utc)
             snapshot = ref.get(transaction=transaction)
             if snapshot.exists:
                 data = snapshot.to_dict() or {}
-                if data.get("status") == "processed":
+                status = data.get("status")
+                attempts = int(data.get("attempts", 0))
+
+                if status == "processed":
                     return -1
-                attempts = data.get("attempts", 0) + 1
+
+                updated_at = _normalize_timestamp(data.get("updated_at"))
+                if (
+                    status == "processing"
+                    and updated_at is not None
+                    and now - updated_at < PROCESSING_LOCK_TIMEOUT
+                ):
+                    return 0
+
+                attempts += 1
                 transaction.update(ref, {
                     "attempts": attempts,
                     "status": "processing",
-                    "updated_at": datetime.now(timezone.utc),
+                    "updated_at": now,
                 })
             else:
                 attempts = 1
                 transaction.set(ref, {
                     "attempts": attempts,
                     "status": "processing",
-                    "created_at": datetime.now(timezone.utc),
-                    "updated_at": datetime.now(timezone.utc),
+                    "created_at": now,
+                    "updated_at": now,
                 })
             return attempts
 
-        return self._db.run_in_transaction(_update)
+        transaction = self._db.transaction()
+        return firestore.transactional(_update)(transaction)
 
     def mark_processed(self, message_id: str) -> None:
         """Mark a message as successfully processed."""
         self._db.collection(COLLECTION).document(message_id).update({
             "status": "processed",
             "processed_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
         })
 
 

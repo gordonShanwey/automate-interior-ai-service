@@ -5,13 +5,13 @@ import base64
 from typing import Dict, Any
 from datetime import datetime
 
-from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends, status
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, status
 from fastapi.responses import JSONResponse, Response
 
 from app.models.client_data import RawClientData
-from app.services.message_tracker import get_message_tracker
-from app.services.pubsub_service import get_pubsub_service, process_message_callback
-from app.utils.errors import PubSubServiceError, format_error_response
+from app.services.message_tracker import MAX_ATTEMPTS, get_message_tracker
+from app.services.pubsub_service import process_message_callback
+from app.utils.errors import format_error_response
 from app.utils.logging import StructuredLogger, log_pubsub_message
 from app.config import get_settings
 
@@ -51,15 +51,18 @@ async def handle_pubsub_push_notification(
             if attempt == -1:
                 logger.info(f"✅ Message {message_id} already processed — skipping duplicate")
                 return Response(status_code=status.HTTP_204_NO_CONTENT)
-            if attempt > 5:
-                logger.error(f"❌ Message {message_id} exceeded 5 attempts — acknowledging")
+            if attempt == 0:
+                logger.info(f"⏳ Message {message_id} is already being processed — skipping duplicate delivery")
                 return Response(status_code=status.HTTP_204_NO_CONTENT)
-            logger.info(f"📨 Received Pub/Sub push notification (attempt {attempt}/5)",
+            if attempt > MAX_ATTEMPTS:
+                logger.error(f"❌ Message {message_id} exceeded {MAX_ATTEMPTS} attempts — acknowledging")
+                return Response(status_code=status.HTTP_204_NO_CONTENT)
+            logger.info(f"📨 Received Pub/Sub push notification (attempt {attempt}/{MAX_ATTEMPTS})",
                         message_id=message_id, publish_time=publish_time)
         except Exception as tracker_err:
-            # Firestore unavailable — log and continue rather than blocking
-            logger.warning(f"⚠️ Message tracker unavailable ({tracker_err}), processing without deduplication")
-            tracker = None
+            # Fail closed: retries are safer than duplicate emails.
+            logger.error(f"❌ Message tracker unavailable for {message_id}: {tracker_err}")
+            raise RuntimeError(f"Message tracker unavailable for {message_id}") from tracker_err
 
         # Decode the message data
         encoded_data = message_data.get("data", "")
@@ -82,7 +85,7 @@ async def handle_pubsub_push_notification(
         
         # Log the received data structure
         logger.info(
-            f"📊 Processing client form data",
+            "📊 Processing client form data",
             message_id=message_id,
             data_fields=list(client_data.keys()) if isinstance(client_data, dict) else "not_dict"
         )
@@ -135,14 +138,11 @@ async def process_client_profile_generation(
     """
     try:
         logger.info(
-            f"🚀 Starting background profile generation",
+            "🚀 Starting background profile generation",
             message_id=message_id,
             client_data_keys=list(client_data.keys())
         )
-        
-        # Process the message using Pub/Sub service
-        pubsub_service = get_pubsub_service()
-        
+
         # Use the callback pattern to process the message
         def profile_generation_callback(raw_client_data: RawClientData) -> None:
             """Callback function to handle profile generation."""
@@ -155,7 +155,7 @@ async def process_client_profile_generation(
                 client_form_data = ClientFormData.from_raw_data(raw_client_data)
                 
                 logger.info(
-                    f"📋 Converted to structured data",
+                    "📋 Converted to structured data",
                     client_name=client_form_data.client_name,
                     project_type=client_form_data.project_type
                 )
@@ -165,7 +165,7 @@ async def process_client_profile_generation(
                 profile = genai_service.generate_client_profile(client_form_data)
                 
                 logger.info(
-                    f"🤖 AI profile generated",
+                    "🤖 AI profile generated",
                     client_name=profile.client_name,
                     recommendations_count=len(profile.recommendations)
                 )
@@ -175,7 +175,7 @@ async def process_client_profile_generation(
                 email_status = email_service.send_profile_report(profile)
                 
                 logger.info(
-                    f"📧 Email report sent",
+                    "📧 Email report sent",
                     message_id=email_status.message_id,
                     recipient=email_status.recipient_email
                 )
@@ -189,7 +189,7 @@ async def process_client_profile_generation(
 
                 # Log successful completion
                 logger.info(
-                    f"✅ Profile generation completed successfully",
+                    "✅ Profile generation completed successfully",
                     message_id=message_id,
                     client_name=profile.client_name,
                     email_message_id=email_status.message_id
@@ -197,7 +197,7 @@ async def process_client_profile_generation(
                 
             except Exception as e:
                 logger.error(
-                    f"❌ Error in profile generation callback",
+                    "❌ Error in profile generation callback",
                     message_id=message_id,
                     error=str(e)
                 )
@@ -208,7 +208,7 @@ async def process_client_profile_generation(
         
     except Exception as e:
         logger.error(
-            f"❌ Background task failed",
+            "❌ Background task failed",
             message_id=message_id,
             error=str(e)
         )
@@ -249,7 +249,7 @@ async def test_webhook_processing(
         test_message_id = f"test_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
         
         logger.info(
-            f"🧪 Processing test webhook",
+            "🧪 Processing test webhook",
             message_id=test_message_id,
             test_data_keys=list(test_data.keys())
         )
